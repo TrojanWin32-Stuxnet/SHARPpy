@@ -71,6 +71,16 @@ sharp_time = None
 sharp_archive_text = ""
 sharp_archive_time = None
 
+SHARP_ARCHIVE_START_YEAR = 1946
+SHARP_ARCHIVE_END_YEAR = 2020
+
+def _sharp_archive_supports_date(dt):
+    # Convert a Qt calendar date into a normal Python date.
+    if hasattr(dt, "toPython"):
+        dt = dt.toPython()
+
+    return SHARP_ARCHIVE_START_YEAR <= dt.year <= SHARP_ARCHIVE_END_YEAR
+
 # SHARP OBSERVED AVAILBILITY
 def _download_sharp():
     global sharp_time, sharp_text
@@ -107,6 +117,9 @@ def _available_sharp(dt=None):
             Array of datetime objects that represents all the available times
             of sounding data on the SHARP site.
     '''
+    if dt is not None and not _sharp_archive_supports_date(dt):
+        return []
+
     if dt is None:
         text = _download_sharp()
         matches = sorted(list(set(re.findall("([\d]{10})/", text))))
@@ -131,6 +144,9 @@ def _availableat_sharp(dt):
         matches : array of strings
             An array that contains all of the three letter station identfiers.
     '''
+    if not _sharp_archive_supports_date(dt):
+        return []
+
     #recent_url = "%s%s/" % (sharp_base_url, dt.strftime('%Y%m%d%H/'))
     #text = urlopen(recent_url).read().decode('utf-8')
     #matches = re.findall("a href=\"(.+).txt\"", text)
