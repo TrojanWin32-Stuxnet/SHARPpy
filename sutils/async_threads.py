@@ -92,6 +92,7 @@ class AsyncThreads(QObject):
     @Slot(str, tuple)
     def finish(self, thread_id, ret_val):
         thd = self.threads[thread_id]
+        thd.wait()
         callback = self.callbacks[thread_id]
 
         callback(ret_val)
