@@ -17,6 +17,8 @@ import imp
 import socket
 import logging
 import traceback
+from contextlib import closing
+from http.client import HTTPException
 
 import sharppy.io.decoder as decoder
 from sharppy.io.csv import loadCSV
@@ -48,6 +50,8 @@ else:
 
 class DataSourceError(Exception):
     pass
+
+network_errors = (URLError, HTTPException, OSError)
 
 def loadDataSources(ds_dir=HOME_DIR):
     """
@@ -85,10 +89,9 @@ def loadDataSources(ds_dir=HOME_DIR):
 
 def _pingURL(hostname, timeout=1):
     try:
-        urlopen(hostname, timeout=timeout, cafile=certifi.where())
-    except URLError:
-        return False
-    except socket.timeout as e:
+        with closing(urlopen(hostname, timeout=timeout, cafile=certifi.where())):
+            pass
+    except network_errors:
         return False
 
     return True
@@ -234,9 +237,13 @@ class Outlet(object):
                     times = available.available[self._name.lower()][self._ds_name.lower()](dt)
                 except TypeError:
                     times = available.available[self._name.lower()][self._ds_name.lower()]()
-                recent = max(times)
-                self._is_available = True
-            except URLError:
+                if times:
+                    recent = max(times)
+                    self._is_available = True
+                else:
+                    custom_failed = True
+                    self._is_available = False
+            except network_errors:
                 custom_failed = True
                 self._is_available = False
 
@@ -302,7 +309,7 @@ class Outlet(object):
 
                 self._is_available = True
 
-            except URLError as err:
+            except network_errors as err:
                 logging.exception(err)
                 stns_avail = []
                 self._is_available = False
@@ -324,10 +331,16 @@ class Outlet(object):
                         times = available.available[self._name.lower()][self._ds_name.lower()](dt)
                     except TypeError:
                         times = available.available[self._name.lower()][self._ds_name.lower()]()
-                if len(times) == 1:
-                    times = self.getArchivedCycles(start=times[0], max_cycles=max_cycles)
-                self._is_available = True
-            except URLError as err:
+                if times:
+                    if len(times) == 1:
+                        times = self.getArchivedCycles(start=times[0], max_cycles=max_cycles)
+                    self._is_available = True
+                else:
+                    logging.warning("No available times returned by %s %s; using configured cycles.",
+                                    self._ds_name, self._name)
+                    custom_failed = True
+                    self._is_available = False
+            except network_errors as err:
                 logging.exception(err)
                 custom_failed = True
                 self._is_available = False
