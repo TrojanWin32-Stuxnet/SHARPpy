@@ -7,9 +7,11 @@ except ImportError:
 import certifi
 import re
 import numpy as np
+from contextlib import closing
 from datetime import datetime, timedelta
 
 cache_len = timedelta(minutes=5)
+observed_timeout = 5
 
 
 goes_base_url = "http://sharp.weather.ou.edu/soundings/goes/"
@@ -86,8 +88,9 @@ def _download_sharp():
     global sharp_time, sharp_text
     now = datetime.utcnow()
     if sharp_time is None or sharp_time < now - cache_len:
-        url_obj = urlopen(sharp_base_url, cafile=certifi.where())
-        sharp_text = url_obj.read().decode('utf-8')
+        with closing(urlopen(sharp_base_url, timeout=observed_timeout,
+                             cafile=certifi.where())) as url_obj:
+            sharp_text = url_obj.read().decode('utf-8')
         sharp_time = now
     return sharp_text
 
@@ -151,7 +154,9 @@ def _availableat_sharp(dt):
     #text = urlopen(recent_url).read().decode('utf-8')
     #matches = re.findall("a href=\"(.+).txt\"", text)
     recent_url = 'http://sharp.weather.ou.edu/soundings/archive/%Y/%m/%d/%H/'
-    text = urlopen(dt.strftime(recent_url), cafile=certifi.where()).read().decode('utf-8')
+    with closing(urlopen(dt.strftime(recent_url), timeout=observed_timeout,
+                         cafile=certifi.where())) as url_obj:
+        text = url_obj.read().decode('utf-8')
     matches = re.findall("a href=\"(.+).txt\"", text)
     return matches
 
@@ -348,8 +353,9 @@ def _download_spc():
     global spc_time, spc_text
     now = datetime.utcnow()
     if spc_time is None or spc_time < now - cache_len:
-        url_obj = urlopen(spc_base_url, cafile=certifi.where())
-        spc_text = url_obj.read().decode('utf-8')
+        with closing(urlopen(spc_base_url, timeout=observed_timeout,
+                             cafile=certifi.where())) as url_obj:
+            spc_text = url_obj.read().decode('utf-8')
 
         spc_time = now
 
@@ -387,7 +393,9 @@ def _availableat_spc(dt):
             An array that contains all of the three letter station identfiers.
     '''
     recent_url = "%s%s/" % (spc_base_url, dt.strftime('%y%m%d%H_OBS'))
-    text = urlopen(recent_url, cafile=certifi.where()).read().decode('utf-8')
+    with closing(urlopen(recent_url, timeout=observed_timeout,
+                         cafile=certifi.where())) as url_obj:
+        text = url_obj.read().decode('utf-8')
     matches = re.findall("show_soundings\(\"([\w]{3}|[\d]{5})\"\)", text)
     return matches
 

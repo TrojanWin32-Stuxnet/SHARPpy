@@ -233,7 +233,11 @@ class Picker(QWidget):
         self.model = "Observed"
         # this is the default model initialization time
         self.all_times = sorted(self.data_sources[self.model].getAvailableTimes())
-        self.run = [t for t in self.all_times if t.hour in [0, 12]][-1]
+        if not self.all_times:
+            logging.warning("No observed times found; using the configured most recent cycle.")
+            self.all_times = [self.data_sources[self.model].getMostRecentCycle()]
+        standard_times = [t for t in self.all_times if t.hour in [0, 12]]
+        self.run = standard_times[-1] if standard_times else self.all_times[-1]
 
         urls = data_source.pingURLs(self.data_sources)
         self.has_connection = any(urls.values())
